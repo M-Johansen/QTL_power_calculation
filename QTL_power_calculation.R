@@ -88,5 +88,5 @@ QTL_Power_calc(sampleSize = 100,
 QTL_Power_calc(100, 20, 0.1)
 
 # or with sample size = 116, cM interval = 5cM and 10% of variance
-# and and a back cross mating strategy
+# and a back cross mating strategy
 QTL_Power_calc(116, 5, 0.1, "BC")
