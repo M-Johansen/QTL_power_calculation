@@ -32,7 +32,7 @@ QTL_Power_calc <- function(sampleSize,
                            phenoVariance,
                            cross = "simple")
 {
-  # Do stop(checks for input data)
+  # Do stop()checks for input data
   if (sampleSize <= 0) stop("Sample size must be a positive number.")
   if (intervalcM < 0) stop("Interval size must be 0 or greater (in cM).")
   if (phenoVariance < 0 || phenoVariance > 1) stop("Phenotypic variance must be between 0 and 1.")
