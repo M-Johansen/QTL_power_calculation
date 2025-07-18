@@ -1,0 +1,190 @@
+---
+title: "QTL Power Calculation"
+output: html_document
+date: "2025-07-18"
+---
+
+# QTL Power Calculation for Trait Mapping Studies
+
+This function was developed based on method and equations described in Hu & Xu (2008) Source: <https://www.nature.com/articles/hdy200825>
+
+## Assumptions
+
+Interval mapping has been performed with a regression method either linear or logarithmic.
+
+Calculates based on a worst-case scenario where the trait locus sits in the middle of the largest marker interval.
+
+### Parameters
+
+Type I error set to 0.01
+
+#### User Input:
+
+sampleSize: Size of the sample population used
+
+intervalcM: Interval in centimorgans for which to calculate the power.
+
+phenoVariance: Ratio of the phenotype that is explained by the trait locus in decimal form. Has to be a number between 0 and 1.
+
+cross: cross type of the data set. Choose from:
+
+-   "simple" (default)
+-   "BC" (Back cross)
+-   "DH" (Double Haploid)
+-   "RIL" (Recombinant Inbred Line)
+
+```{r}
+QTL_Power_calc <- function(sampleSize, 
+                           intervalcM,
+                           phenoVariance,
+                           cross = "simple")
+{
+  
+  ## 1 # find recombination rate
+  recomb = 0.5*(1-exp(-(intervalcM/sampleSize)))
+  
+  ## 2 # Calculate the Qx2
+  # based on mating strategy:
+  ## if cross = "simple"
+  if(cross == "simple") {
+    Qx2 = ((1-2*recomb)^2)/(2-4*recomb*(1-recomb))
+  }
+  
+  # if cross = backcross ("BC")
+  if(cross == "BC") {
+    Qx2 = ((1-2*recomb)^2)/(4-8*(1-recomb)*recomb)
+  }
+  
+  # if cross is double haploid (DH)
+  if(cross == "DH") {
+    Qx2 = 2-(1/(1-2*(1-recomb))*recomb)
+  }
+  
+  # if cross us recombinant inbred line ("RIL")
+  if(cross == "RIL") {
+    Qx2 = 1 - ((2*recomb)/(1+4*recomb^2))
+  }
+  
+  ## 3 # Calculate the squared QTL effect a^2
+  # phenoVariance = 0.1
+  effect <- (phenoVariance/(0.5*(1 - phenoVariance)))
+  
+  ## 4 # Calculate the non-centrality parameters
+  nonCent <- sampleSize * Qx2 * (effect/(1 + effect * (0.5 - Qx2)))
+  
+  ## 5 # Calculate type 1 error (=0.01):
+  type_1 <- qf(0.99, 1, sampleSize)
+  
+  ## 6 # Calculate the Type 2 error, F distribution
+  type_2 <- pf(type_1, 1, sampleSize, nonCent)
+  
+  # 7 # Calculate statistical power to detect QTL
+  power_r <- 1-type_2
+  print(power_r)
+}
+```
+
+## Example 1:
+
+-   100 samples
+-   5 cM interval
+-   Explaining 10% of the phenotypic variance
+-   Cross type: "simple"
+
+```{r}
+QTL_Power_calc(sampleSize = 100, 
+               intervalcM = 5,
+               phenoVariance = 0.1,
+               cros = "simple")
+```
+
+This would only have a 72.9% chance of accurately locating the causative loci.
+
+## Example 2:
+
+-   200 samples
+-   10 cM interval
+-   Explaining 75% of the phenotypic variance
+-   Cross type: Back cross
+
+```{r}
+QTL_Power_calc(200, 10, 0.75, "BC")
+
+```
+
+There would be enough power to detect trait loci.
+
+## The function can also be used on a vector of data points to plot power curves
+
+### Example 3: For a series of cM intervals:
+
+We can plot power curves for a series of cM intervals between 1 and 50 for a set population size of 50, and a set phenotypic variance of 0.5.
+
+```{r}
+intervals <- seq(0, 50, by=1) # in cM
+power_vals <- sapply(intervals, function(i) {
+  QTL_Power_calc(sampleSize = 50,
+                 intervalcM = i,
+                 phenoVariance = 0.5)
+})
+```
+
+This information can then be plotted as a power curve with a line at 95%:
+
+```{r}
+plot(intervals, power_vals, type = "l", lwd = 3,
+     col = "#1E88E5",
+     xlab = "Marker Interval (cM)",
+     ylab = "Power",
+     main = "Power Curve: Power vs Interval Size (cM)")
+abline(h = 0.95, col = "red", lty = 2)
+```
+
+### Example 4: For a series sample sizes:
+
+We can plot power curves for a series of sample sizes between 10 and 100 for interval size of 3 cM and phenotypic variance of 50%:
+
+```{r}
+samples <- seq(1, 50, by=1) # sample size
+power_sample <- sapply(samples, function(i) {
+  QTL_Power_calc(sampleSize = i,
+                 intervalcM = 3, 
+                 phenoVariance = 0.5)
+})
+```
+
+The power curve can then be plotted like this:
+
+```{r}
+plot(samples, power_sample, type = "l", lwd = 3,
+     col = "#1E88E5",
+     xlab = "Sample size",
+     ylab = "Power",
+     main = "Power Curve: Power vs Sample Size")
+abline(h = 0.95, col = "red", lty = 2)
+
+```
+
+### Example 5: For a series of phenotypic variance estimates:
+
+We can plot power curves for a series of phenotypic variance between 0 and 100% for a set sample size of 100 individuals and a set interval size of 3 cM.
+
+```{r}
+pheno <- seq(0, 1, by=0.02) # sample size
+power_pheno <- sapply(pheno, function(i) {
+  QTL_Power_calc(sampleSize = 50,
+                 intervalcM = 3, 
+                 phenoVariance = i)
+})
+```
+
+The power curve can then be plotted like this:
+
+```{r}
+plot(pheno, power_pheno, type = "l", lwd = 3,
+     col = "#1E88E5",
+     xlab = "Phenotypic variance",
+     ylab = "Power",
+     main = "Power Curve: Power vs Phenotypic Variance")
+abline(h = 0.95, col = "red", lty = 2)
+```
